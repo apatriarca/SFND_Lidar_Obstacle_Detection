@@ -50,13 +50,28 @@ void simpleHighway(pcl::visualization::PCLVisualizer::Ptr& viewer)
     auto lidar = std::unique_ptr<Lidar>(new Lidar(cars, 0.0));
     auto pc = lidar->scan();
     // renderRays(viewer, lidar->position, pc);
-    //renderPointCloud(viewer, pc, "pc");
+    // renderPointCloud(viewer, pc, "pc");
 
     // TODO:: Create point processor
     ProcessPointClouds<pcl::PointXYZ> processor;
     auto segmentCloud = processor.SegmentPlane(pc, 100, 0.2);
-    renderPointCloud(viewer, segmentCloud.first, "obstCloud", Color(1,0,0));
-    renderPointCloud(viewer, segmentCloud.second, "planeCloud", Color(0,1,0));
+    // renderPointCloud(viewer, segmentCloud.first, "obstCloud", Color(1,0,0));
+    // renderPointCloud(viewer, segmentCloud.second, "planeCloud", Color(0,1,0));
+
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> cloudClusters = processor.Clustering(segmentCloud.first, 1.0, 3, 30);
+
+    int clusterId = 0;
+    std::vector<Color> colors = {Color(1,0,0), Color(0,1,0), Color(0,0,1)};
+
+    for(pcl::PointCloud<pcl::PointXYZ>::Ptr cluster : cloudClusters)
+    {
+        std::cout << "cluster size ";
+        processor.numPoints(cluster);
+        renderPointCloud(viewer,cluster,"obstCloud"+std::to_string(clusterId),colors[clusterId]);
+        Box box = processor.BoundingBox(cluster);
+        renderBox(viewer,box,clusterId);
+        ++clusterId;
+    }
 }
 
 
