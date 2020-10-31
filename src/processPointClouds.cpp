@@ -2,6 +2,7 @@
 
 #include "processPointClouds.h"
 #include "quiz/ransac/ransac.h"
+#include "quiz/cluster/cluster.h"
 
 
 //constructor:
@@ -24,7 +25,6 @@ void ProcessPointClouds<PointT>::numPoints(typename pcl::PointCloud<PointT>::Ptr
 template<typename PointT>
 typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(typename pcl::PointCloud<PointT>::Ptr cloud, float filterRes, Eigen::Vector4f minPoint, Eigen::Vector4f maxPoint)
 {
-
     // Time segmentation process
     auto startTime = std::chrono::steady_clock::now();
 
@@ -124,26 +124,19 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
 
     std::vector<typename pcl::PointCloud<PointT>::Ptr> clusters;
 
-    // TODO:: Fill in the function to perform euclidean clustering to group detected obstacles
-    typename pcl::search::KdTree<PointT>::Ptr tree (new typename pcl::search::KdTree<PointT>);
-    tree->setInputCloud(cloud);
+    // Creates tree
+    KdTree<PointT, 3, DataAccessor<PointT>> tree;
+    tree.insertPoints(cloud->points);
 
-    std::vector<pcl::PointIndices> cluster_indices;
+    std::vector<std::vector<int>> clusters_indices = euclideanCluster<PointT, 3, DataAccessor<PointT>, typename pcl::PointCloud<PointT>::VectorType>(
+        cloud->points, tree, clusterTolerance, minSize, maxSize);
 
-    typename pcl::EuclideanClusterExtraction<PointT> ec;
-    ec.setClusterTolerance(clusterTolerance);
-    ec.setMinClusterSize(minSize);
-    ec.setMaxClusterSize(maxSize);
-    ec.setSearchMethod(tree);
-    ec.setInputCloud(cloud);
-    ec.extract(cluster_indices);
-
-    for (const auto& indices : cluster_indices)
+    for (const auto& indices : clusters_indices)
     {
         typename pcl::PointCloud<PointT>::Ptr cloud_cluster (new typename pcl::PointCloud<PointT>);
-        for (const auto& index : indices.indices)
+        for (int index : indices)
         {
-            cloud_cluster->push_back((*cloud)[index]);
+            cloud_cluster->push_back(cloud->points[index]);
         }
         
         cloud_cluster->width = cloud_cluster->size();
